@@ -1,3 +1,6 @@
 # Virtual environment folders
 venv/
 tdt4173/
+
+# Python compiled bytecode
+__pycache__/
