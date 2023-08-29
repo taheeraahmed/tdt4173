@@ -1,6 +1,7 @@
 # Virtual environment folders
 venv/
-tdt4173/
+tdt4173_ia/
+tdt4173_ia/Lib/site-packages/
 
 # Python compiled bytecode
 __pycache__/
