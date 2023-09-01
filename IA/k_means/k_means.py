@@ -5,11 +5,11 @@ import pandas as pd
 
 
 class KMeans:
-    
-    def __init__():
-        # NOTE: Feel free add any hyperparameters 
-        # (with defaults) as you see fit
-        pass
+
+    def __init__(self, k=3, max_iters=100):
+        self.k = k
+        self.max_iters = max_iters
+        self.centroids = None
         
     def fit(self, X):
         """
@@ -19,8 +19,26 @@ class KMeans:
             X (array<m,n>): a matrix of floats with
                 m rows (#samples) and n columns (#features)
         """
-        # TODO: Implement
-        raise NotImplemented()
+        m, n = X.shape  # m: number of samples, n: number of features
+    
+        # Initial centroids chosen randomly from the dataset
+        self.centroids = X.sample(n=self.k).to_numpy()
+        # Iterate for max_iters times
+        for _ in range(self.max_iters):
+            X_cols = X.columns.tolist() 
+
+            # Assign each data point to the nearest centroid
+            distances = cross_euclidean_distance(X[X_cols].values, self.centroids)
+            labels = np.argmin(distances, axis=1)
+            
+            # Update centroids to the mean of their assigned points
+            new_centroids = np.array([X[labels == i].mean(axis=0) for i in range(self.k)])
+            
+            # Check for convergence
+            if np.all(new_centroids == self.centroids):
+                break
+
+            self.centroids = new_centroids
     
     def predict(self, X):
         """
@@ -38,8 +56,10 @@ class KMeans:
             there are 3 clusters, then a possible assignment
             could be: array([2, 0, 0, 1, 2, 1, 1, 0, 2, 2])
         """
-        # TODO: Implement 
-        raise NotImplemented()
+        X_cols = X.columns.tolist() 
+        distances = cross_euclidean_distance(X[X_cols].values, self.centroids)
+        labels = np.argmin(distances, axis=-1)
+        return labels
     
     def get_centroids(self):
         """
@@ -56,7 +76,7 @@ class KMeans:
             [xm_1, xm_2, ..., xm_n]
         ])
         """
-        pass
+        return self.centroids
     
     
     
@@ -81,14 +101,14 @@ def euclidean_distance(x, y):
 
 def cross_euclidean_distance(x, y=None):
     """
-    
+    Calculates the cross pairwise Euclidean distance between two 
+    sets of points represented by multidimensional arrays x and y.
     
     """
     y = x if y is None else y 
     assert len(x.shape) >= 2
     assert len(y.shape) >= 2
     return euclidean_distance(x[..., :, None, :], y[..., None, :, :])
-
 
 def euclidean_distortion(X, z):
     """
@@ -111,9 +131,18 @@ def euclidean_distortion(X, z):
     for i, c in enumerate(clusters):
         Xc = X[z == c]
         mu = Xc.mean(axis=0)
-        distortion += ((Xc - mu) ** 2).sum(axis=1)
         
+        # Check that Xc and mu have compatible shapes for subtraction.
+        assert Xc.shape[1] == mu.shape[0], "Xc and mu shapes do not match."
+        squared_diff = (Xc - mu) ** 2
+
+        # Sum the squared differences along both axes and then sum the result
+        cluster_distortion = squared_diff.sum(axis=1).sum()
+        distortion += cluster_distortion
+
     return distortion
+
+
 
 
 def euclidean_silhouette(X, z):
