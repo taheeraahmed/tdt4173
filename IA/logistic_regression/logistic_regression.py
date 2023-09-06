@@ -1,45 +1,75 @@
-import numpy as np 
-import pandas as pd 
-# IMPORTANT: DO NOT USE ANY OTHER 3RD PARTY PACKAGES
-# (math, random, collections, functools, etc. are perfectly fine)
-
+import numpy as np
+import pandas as pd
 
 class LogisticRegression:
-    
-    def __init__():
-        # NOTE: Feel free add any hyperparameters 
-        # (with defaults) as you see fit
-        pass
-        
+
+    def __init__(self, learning_rate=0.01, num_iterations=1000):
+        """
+        Initialize the Logistic Regression model with hyperparameters.
+
+        Args:
+            learning_rate (float): The learning rate for gradient descent.
+            num_iterations (int): The number of training iterations.
+        """
+        self.learning_rate = learning_rate
+        self.num_iterations = num_iterations
+        self.weights = None
+        self.bias = None
+
     def fit(self, X, y):
         """
-        Estimates parameters for the classifier
-        
+        Estimates parameters for the classifier using gradient descent.
+
         Args:
-            X (array<m,n>): a matrix of floats with
-                m rows (#samples) and n columns (#features)
-            y (array<m>): a vector of floats containing 
-                m binary 0.0/1.0 labels
+            X (array<m,n>): a matrix of floats with m rows (#samples) and n columns (#features)
+            y (array<m>): a vector of floats containing m binary 0.0/1.0 labels
         """
-        # TODO: Implement
-        raise NotImplemented()
-    
+        m, n = X.shape
+        self.weights = np.zeros(n)
+        self.bias = 0
+
+        for _ in range(self.num_iterations):
+            # Compute predictions
+            y_pred = self._sigmoid(np.dot(X, self.weights) + self.bias)
+
+            # Compute gradients
+            dw = (1 / m) * np.dot(X.T, (y_pred - y))
+            db = (1 / m) * np.sum(y_pred - y)
+
+            # Update parameters
+            self.weights -= self.learning_rate * dw
+            self.bias -= self.learning_rate * db
+
     def predict(self, X):
         """
-        Generates predictions
-        
+        Generates predictions.
+
         Note: should be called after .fit()
-        
+
         Args:
-            X (array<m,n>): a matrix of floats with 
-                m rows (#samples) and n columns (#features)
-            
+            X (array<m,n>): a matrix of floats with m rows (#samples) and n columns (#features)
+
         Returns:
-            A length m array of floats in the range [0, 1]
-            with probability-like predictions
+            A length m array of floats in the range [0, 1] with probability-like predictions
         """
-        # TODO: Implement
-        raise NotImplemented()
+        if self.weights is None or self.bias is None:
+            raise ValueError("Model not trained. Call fit() first.")
+
+        y_pred = self._sigmoid(np.dot(X, self.weights) + self.bias)
+        return y_pred
+
+    def _sigmoid(self, x):
+        """
+        Applies the logistic function element-wise.
+
+        Args:
+            x (float or array): input to the logistic function
+
+        Returns:
+            Element-wise sigmoid activations of the input
+        """
+        return 1.0 / (1.0 + np.exp(-x))
+
         
 
         
