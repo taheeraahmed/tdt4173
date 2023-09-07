@@ -24,17 +24,16 @@ class LogisticRegression:
             X (array<m,n>): a matrix of floats with m rows (#samples) and n columns (#features)
             y (array<m>): a vector of floats containing m binary 0.0/1.0 labels
         """
-        m, n = X.shape
-        self.weights = np.zeros(n)
+        self.weights = np.zeros(X.shape[1])
         self.bias = 0
 
         for _ in range(self.num_iterations):
             # Compute predictions
-            y_pred = self._sigmoid(np.dot(X, self.weights) + self.bias)
+            y_pred = sigmoid(np.dot(X, self.weights) + self.bias)
 
             # Compute gradients
-            dw = (1 / m) * np.dot(X.T, (y_pred - y))
-            db = (1 / m) * np.sum(y_pred - y)
+            dw = (1 / X.shape[0]) * np.dot(X.T, (y_pred - y))
+            db = (1 / X.shape[0]) * np.sum(y_pred - y)
 
             # Update parameters
             self.weights -= self.learning_rate * dw
@@ -55,20 +54,8 @@ class LogisticRegression:
         if self.weights is None or self.bias is None:
             raise ValueError("Model not trained. Call fit() first.")
 
-        y_pred = self._sigmoid(np.dot(X, self.weights) + self.bias)
+        y_pred = sigmoid(np.dot(X, self.weights) + self.bias)
         return y_pred
-
-    def _sigmoid(self, x):
-        """
-        Applies the logistic function element-wise.
-
-        Args:
-            x (float or array): input to the logistic function
-
-        Returns:
-            Element-wise sigmoid activations of the input
-        """
-        return 1.0 / (1.0 + np.exp(-x))
 
         
 
@@ -126,5 +113,3 @@ def sigmoid(x):
         Element-wise sigmoid activations of the input 
     """
     return 1. / (1. + np.exp(-x))
-
-        
