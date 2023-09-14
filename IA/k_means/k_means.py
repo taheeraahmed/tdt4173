@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+from scipy.spatial.distance import cdist
 
 # IMPORTANT: DO NOT USE ANY OTHER 3RD PARTY PACKAGES
 # (math, random, collections, functools, etc. are perfectly fine)
@@ -7,10 +7,14 @@ import pandas as pd
 
 class KMeans:
 
-    def __init__(self, k=3, max_iters=10000):
+    def __init__(self, k=3, max_iters=10000, pp=False, n_init=1, tol=1e-4):
         self.k = k
         self.max_iters = max_iters
+        self.pp = pp
+        self.n_init = n_init
+        self.tol = tol
         self.centroids = None
+        self.labels = None
 
     def fit(self, X):
         """
@@ -20,26 +24,36 @@ class KMeans:
             X (array<m,n>): a matrix of floats with
                 m rows (#samples) and n columns (#features)
         """
-        # Initial centroids chosen from using K-means++
-        self.centroids = self.initialize_centroids(X)
-        # Iterate for max_iters times
-        for _ in range(self.max_iters):
-            X_cols = X.columns.tolist()
+        X = np.array(X)
+        # TODO: Standardize the data
+        best_centroids = None
+        best_labels = None
 
-            # Assign each data point to the nearest centroid
-            distances = cross_euclidean_distance(
-                X[X_cols].values, self.centroids)
-            labels = np.argmin(distances, axis=1)
+        for _ in range(self.n_init):
+            if self.pp:
+                centroids = X[np.random.choice(len(X), self.k, replace=False)]
+            else:
+                centroids = self.initialize_centroids(X)
 
-            # Update centroids to the mean of their assigned points
-            new_centroids = np.array(
-                [X[labels == i].mean(axis=0) for i in range(self.k)])
+            for _ in range(self.max_iters):
+                distances = cdist(X, centroids, 'euclidean')
+                labels = np.argmin(distances, axis=1)
+                new_centroids = np.array([X[labels == i].mean(axis=0) for i in range(self.k)])
 
-            # Check for convergence
-            if np.all(new_centroids == self.centroids):
-                break
+                if np.all(np.abs(new_centroids - centroids) < self.tol):
+                    break
 
-            self.centroids = new_centroids
+                centroids = new_centroids
+
+            distortion = np.sum([np.sum(cdist(X[labels == i], [centroids[i]], 'euclidean')**2) for i in range(self.k)])
+
+            if distortion < best_distortion:
+                best_distortion = distortion
+                best_centroids = centroids
+                best_labels = labels
+
+        self.centroids = best_centroids
+        self.labels = best_labels
 
     def initialize_centroids(self, X):
         """
@@ -53,20 +67,16 @@ class KMeans:
             A numpy array of shape (k, n) with initial centroids
         """
         centroids = np.empty((self.k, X.shape[1]))
-
-        # Choose the first centroid randomly
-        centroids[0] = X.sample().to_numpy()
+        centroids[0] = X[np.random.choice(len(X))]  # Choose the first centroid randomly
 
         for i in range(1, self.k):
-            # Compute the distance to the nearest existing centroid for each point
-            distances = cross_euclidean_distance(X.to_numpy(), centroids[:i])
-            min_distances = distances.min(axis=1)
+            distances = cdist(X, centroids[:i], 'euclidean')
+            min_distances = np.min(distances, axis=1)
 
             # Choose the next centroid with probability proportional to the squared distance
-            # This is equivalent to the squared Euclidean distance
-            probabilities = min_distances ** 2 / sum(min_distances ** 2)
-            new_centroid_idx = np.random.choice(X.shape[0], p=probabilities)
-            centroids[i] = X.iloc[new_centroid_idx].to_numpy()
+            probabilities = min_distances ** 2 / np.sum(min_distances ** 2)
+            new_centroid_idx = np.random.choice(len(X), p=probabilities)
+            centroids[i] = X[new_centroid_idx]
 
         return centroids
 
@@ -211,26 +221,3 @@ def euclidean_silhouette(X, z):
     b = (D + inf_mask).min(axis=1)
 
     return np.mean((b - a) / np.maximum(a, b))
-
-
-def main():
-    data_2 = pd.read_csv('data_2.csv')
-    # Fit Model
-    X = data_2[['x0', 'x1']]
-    model_2 = KMeans(k=8)  # <-- Feel free to add hyperparameters
-    model_2.fit(X)
-
-    # Compute Silhouette Score
-    z = model_2.predict(X)
-    print(f'Distortion: {euclidean_distortion(X, z) :.3f}')
-    print(f'Silhouette Score: {euclidean_silhouette(X, z) :.3f}')
-
-    # Plot cluster assignments
-    C = model_2.get_centroids()
-    K = len(C)
-    _, ax = plt.subplots(figsize=(5, 5), dpi=100)
-    sns.scatterplot(x='x0', y='x1', hue=z, hue_order=range(K),
-                    palette='tab10', data=X, ax=ax)
-    sns.scatterplot(x=C[:, 0], y=C[:, 1], hue=range(
-        K), palette='tab10', marker='*', s=250, edgecolor='black', ax=ax)
-    ax.legend().remove()
