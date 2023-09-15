@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.spatial.distance import cdist
+import pandas as pd
 
 # IMPORTANT: DO NOT USE ANY OTHER 3RD PARTY PACKAGES
 # (math, random, collections, functools, etc. are perfectly fine)
@@ -8,16 +9,17 @@ from scipy.spatial.distance import cdist
 class KMeans:
 
     def __init__(self, k=3, max_iters=1000, n_init=1, tol=1e-4, centroid_init='random'):
-        self.k = k                             # Number of clusters
-        self.centroid_init = centroid_init     # Whether to use K-means++ initialization
-        self.max_iters = max_iters             # Maximum number of iterations
-        self.n_init = n_init                   # Number of initializations
-        self.tol = tol                         # Tolerance for convergence
+        self.k = k                                     # Number of clusters
+        # Whether to use K-means++ initialization
+        self.centroid_init = centroid_init
+        self.max_iters = max_iters                     # Maximum number of iterations
+        self.n_init = n_init                           # Number of initializations
+        self.tol = tol                                 # Tolerance for convergence
 
-        self.centroids = None                  # Cluster centroids
-        self.labels = None                     # Cluster assignments
+        self.centroids = None                          # Cluster centroids
+        self.labels = None                             # Cluster assignments
 
-    def fit(self, X):
+    def fit(self, X: pd.DataFrame):
         """
         Estimates parameters for the classifier
 
@@ -91,8 +93,8 @@ class KMeans:
         ])
         """
         return self.centroids
-    
-    def initialize_centroids(self, X, type='random'):
+
+    def initialize_centroids(self, X, method='random'):
         """
         Initialize centroids using K-means++ initialization
 
@@ -103,9 +105,9 @@ class KMeans:
         Returns:
             A numpy array of shape (k, n) with initial centroids
         """
-        if type == 'random':
+        if method == 'random':
             return X[np.random.choice(len(X), self.k, replace=False)]
-        elif type == 'kpp':
+        elif method == 'kpp':
             centroids = np.empty((self.k, X.shape[1]))
             centroids[0] = X[np.random.choice(len(X))]  # Choose the first centroid randomly
 
@@ -122,17 +124,32 @@ class KMeans:
             raise ValueError('Invalid initialization type')
 
 
-# --- Some utility functions
 
-def min_max_scaling(data, feature_range=(0, 1)):
-    min_val = feature_range[0]
-    max_val = feature_range[1]
-    
-    min_data = np.min(data, axis=0)
-    max_data = np.max(data, axis=0)
-    
-    scaled_data = (data - min_data) / (max_data - min_data) * (max_val - min_val) + min_val
-    return scaled_data
+# --- Some utility functions
+def feature_engineering(X: pd.DataFrame, method='normalize') -> pd.DataFrame:
+    """
+    Feature engineering for the K-means model
+
+    Args:
+        X (array<m,n>): a matrix of floats with
+            m rows (#samples) and n columns (#features)
+
+    Returns:
+        A numpy array of shape (m, n) with the new features
+    """
+    if method == 'normalize':
+        # Shift the data so that the minimum value is 0
+        x_shift = (X-X.min())
+        # Scale the data so that the maximum value is 1
+        feature_range = (X.max()-X.min())
+        return x_shift / feature_range
+    elif method == 'standardize':
+        # Shift the data so that the mean is 0
+        x_shift = (X-X.mean())
+        # Scale the data so that the standard deviation is 1
+        return x_shift / X.std()
+    else:
+        return X
 
 def euclidean_distance(x, y):
     """
