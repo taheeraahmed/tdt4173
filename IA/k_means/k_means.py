@@ -28,6 +28,7 @@ class KMeans:
         # TODO: Standardize the data
         best_centroids = None
         best_labels = None
+        best_distortion = np.inf
 
         for _ in range(self.n_init):
             if self.pp:
@@ -120,6 +121,16 @@ class KMeans:
 
 
 # --- Some utility functions
+
+def min_max_scaling(data, feature_range=(0, 1)):
+    min_val = feature_range[0]
+    max_val = feature_range[1]
+    
+    min_data = np.min(data, axis=0)
+    max_data = np.max(data, axis=0)
+    
+    scaled_data = (data - min_data) / (max_data - min_data) * (max_val - min_val) + min_val
+    return scaled_data
 
 def euclidean_distance(x, y):
     """
