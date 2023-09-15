@@ -138,18 +138,20 @@ def feature_engineering(X: pd.DataFrame, method='normalize') -> pd.DataFrame:
         A numpy array of shape (m, n) with the new features
     """
     if method == 'normalize':
-        # Shift the data so that the minimum value is 0
-        x_shift = (X-X.min())
-        # Scale the data so that the maximum value is 1
-        feature_range = (X.max()-X.min())
-        return x_shift / feature_range
+        # Min-max scaling (normalize)
+        x_shift = X - X.min()
+        feature_range = X.max() - X.min()
+        normalized_X = x_shift / feature_range
+        return normalized_X
     elif method == 'standardize':
-        # Shift the data so that the mean is 0
-        x_shift = (X-X.mean())
-        # Scale the data so that the standard deviation is 1
-        return x_shift / X.std()
+        # Z-score standardization (standardize)
+        x_shift = X - X.mean()
+        standardized_X = x_shift / X.std()
+        return standardized_X
     else:
+        # No transformation
         return X
+
 
 def euclidean_distance(x, y):
     """
