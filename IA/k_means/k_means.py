@@ -7,14 +7,15 @@ from scipy.spatial.distance import cdist
 
 class KMeans:
 
-    def __init__(self, k=3, max_iters=10000, pp=False, n_init=1, tol=1e-4):
-        self.k = k
-        self.max_iters = max_iters
-        self.pp = pp
-        self.n_init = n_init
-        self.tol = tol
-        self.centroids = None
-        self.labels = None
+    def __init__(self, k=3, max_iters=1000, n_init=1, tol=1e-4, centroid_init='random'):
+        self.k = k                             # Number of clusters
+        self.centroid_init = centroid_init     # Whether to use K-means++ initialization
+        self.max_iters = max_iters             # Maximum number of iterations
+        self.n_init = n_init                   # Number of initializations
+        self.tol = tol                         # Tolerance for convergence
+
+        self.centroids = None                  # Cluster centroids
+        self.labels = None                     # Cluster assignments
 
     def fit(self, X):
         """
@@ -31,10 +32,7 @@ class KMeans:
         best_distortion = np.inf
 
         for _ in range(self.n_init):
-            if self.pp:
-                centroids = X[np.random.choice(len(X), self.k, replace=False)]
-            else:
-                centroids = self.initialize_centroids(X)
+            centroids = self.initialize_centroids(X, self.centroid_init)
 
             for _ in range(self.max_iters):
                 distances = cdist(X, centroids, 'euclidean')
@@ -55,31 +53,6 @@ class KMeans:
 
         self.centroids = best_centroids
         self.labels = best_labels
-
-    def initialize_centroids(self, X):
-        """
-        Initialize centroids using K-means++ initialization
-
-        Args:
-            X (array<m,n>): a matrix of floats with
-                m rows (#samples) and n columns (#features)
-
-        Returns:
-            A numpy array of shape (k, n) with initial centroids
-        """
-        centroids = np.empty((self.k, X.shape[1]))
-        centroids[0] = X[np.random.choice(len(X))]  # Choose the first centroid randomly
-
-        for i in range(1, self.k):
-            distances = cdist(X, centroids[:i], 'euclidean')
-            min_distances = np.min(distances, axis=1)
-
-            # Choose the next centroid with probability proportional to the squared distance
-            probabilities = min_distances ** 2 / np.sum(min_distances ** 2)
-            new_centroid_idx = np.random.choice(len(X), p=probabilities)
-            centroids[i] = X[new_centroid_idx]
-
-        return centroids
 
     def predict(self, X):
         """
@@ -118,6 +91,35 @@ class KMeans:
         ])
         """
         return self.centroids
+    
+    def initialize_centroids(self, X, type='random'):
+        """
+        Initialize centroids using K-means++ initialization
+
+        Args:
+            X (array<m,n>): a matrix of floats with
+                m rows (#samples) and n columns (#features)
+
+        Returns:
+            A numpy array of shape (k, n) with initial centroids
+        """
+        if type == 'random':
+            return X[np.random.choice(len(X), self.k, replace=False)]
+        elif type == 'kpp':
+            centroids = np.empty((self.k, X.shape[1]))
+            centroids[0] = X[np.random.choice(len(X))]  # Choose the first centroid randomly
+
+            for i in range(1, self.k):
+                distances = cdist(X, centroids[:i], 'euclidean')
+                min_distances = np.min(distances, axis=1)
+
+                # Choose the next centroid with probability proportional to the squared distance
+                probabilities = min_distances ** 2 / np.sum(min_distances ** 2)
+                new_centroid_idx = np.random.choice(len(X), p=probabilities)
+                centroids[i] = X[new_centroid_idx]
+            return centroids
+        else:
+            raise ValueError('Invalid initialization type')
 
 
 # --- Some utility functions
