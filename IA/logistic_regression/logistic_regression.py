@@ -3,18 +3,8 @@ import pandas as pd
 
 
 class LogisticRegression:
-
     def __init__(self, degree=1, learning_rate=0.01, num_iterations=1000, regularization=0.01, batch_size=32):
-        """
-        Initialize the Logistic Regression model with batch gradient descent.
-
-        Args:
-            degree (int): The degree of polynomial features to generate.
-            learning_rate (float): The learning rate for gradient descent.
-            num_iterations (int): The number of training iterations.
-            regularization (float): Strength of L2 regularization.
-            batch_size (int): The number of samples in each mini-batch.
-        """
+        # Initialize parameters and hyperparameters
         self.degree = degree
         self.learning_rate = learning_rate
         self.num_iterations = num_iterations
@@ -24,71 +14,56 @@ class LogisticRegression:
         self.weights = None
 
     def generate_polynomial_features(self, X):
-        """
-        Generate polynomial features of specified degree.
-
-        Args:
-            X (array<m,n>): a matrix of floats with m rows (#samples) and n columns (#features).
-
-        Returns:
-            X_poly (array<m, n_poly>): a matrix of floats with polynomial features.
-        """
+        # Generate polynomial features of specified degree
         X_poly = X.copy()
         for d in range(2, self.degree + 1):
             X_poly = np.concatenate((X_poly, X ** d), axis=1)
         return X_poly
 
     def fit(self, X, y):
-        """
-        Estimates parameters for the classifier using batch gradient descent.
-
-        Args:
-            X (array<m,n>): a matrix of floats with m rows (#samples) and n columns (#features)
-            y (array<m>): a vector of floats containing m binary 0.0/1.0 labels
-        """
-        X_poly = self.generate_polynomial_features(
-            X)
+        # Initialize weights and bias
+        X_poly = self.generate_polynomial_features(X)
         m, n = X_poly.shape
-        np.random.seed(3)
-        self.weights = np.random.randn(n)
+        self.weights = np.zeros(n)
         self.bias = 0
 
         for _ in range(self.num_iterations):
-            for i in range(0, m, self.batch_size):
-                # Create mini-batch
-                X_batch = X_poly[i:i + self.batch_size]
-                y_batch = y[i:i + self.batch_size]
+            # Compute predictions for the entire dataset
+            y_pred = sigmoid(np.dot(X_poly, self.weights) + self.bias)
 
-                # Compute predictions for the mini-batch
-                y_pred = sigmoid(np.dot(X_batch, self.weights) + self.bias)
-
-                # Compute gradients for the mini-batch
-                dw = (1 / X_batch.shape[0]) * np.dot(X_batch.T, (y_pred -
-                                                                 y_batch)) + (2 * self.regularization * self.weights)
-                db = (1 / X_batch.shape[0]) * np.sum(y_pred - y_batch)
-
-                # Update parameters
-                self.weights -= self.learning_rate * dw
-                self.bias -= self.learning_rate * db
+            # Compute gradients and update parameters
+            dw = (1 / m) * np.dot(X_poly.T, (y_pred - y)) + (2 * self.regularization * self.weights)
+            db = (1 / m) * np.sum(y_pred - y)
+            self.weights -= self.learning_rate * dw
+            self.bias -= self.learning_rate * db
 
     def predict(self, X):
-        """
-        Generates predictions.
-
-        Note: should be called after .fit()
-
-        Args:
-            X (array<m,n>): a matrix of floats with m rows (#samples) and n columns (#features)
-
-        Returns:
-            A length m array of floats in the range [0, 1] with probability-like predictions
-        """
+        # Generate predictions
         if self.weights is None or self.bias is None:
             raise ValueError("Model not trained. Call fit() first.")
-        X_poly = self.generate_polynomial_features(
-            X)  # Generate polynomial features
+        X_poly = self.generate_polynomial_features(X)
         y_pred = sigmoid(np.dot(X_poly, self.weights) + self.bias)
         return y_pred
+
+    def evaluate(self, X, y, threshold=0.5):
+        # Evaluate model performance
+        y_pred = self.predict(X)
+        accuracy = self.binary_accuracy(y, y_pred, threshold)
+        loss = self.binary_cross_entropy(y, y_pred)
+        return accuracy, loss
+
+    @staticmethod
+    def binary_accuracy(y_true, y_pred, threshold=0.5):
+        # Binary classification accuracy
+        y_pred_thresholded = (y_pred >= threshold).astype(float)
+        correct_predictions = y_pred_thresholded == y_true
+        return correct_predictions.mean()
+
+    @staticmethod
+    def binary_cross_entropy(y_true, y_pred, eps=1e-15):
+        # Binary cross-entropy loss
+        y_pred = np.clip(y_pred, eps, 1 - eps)
+        return -np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
 
 
 # --- Some utility functions
