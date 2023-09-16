@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.spatial.distance import cdist
 import pandas as pd
 
 # IMPORTANT: DO NOT USE ANY OTHER 3RD PARTY PACKAGES
@@ -7,12 +8,18 @@ import pandas as pd
 
 class KMeans:
 
-    def __init__(self, k=3, max_iters=10000):
-        self.k = k
-        self.max_iters = max_iters
-        self.centroids = None
+    def __init__(self, k=3, max_iters=1000, n_init=1, tol=1e-4, centroid_init='random'):
+        self.k = k                                     # Number of clusters
+        # Whether to use K-means++ initialization
+        self.centroid_init = centroid_init
+        self.max_iters = max_iters                     # Maximum number of iterations
+        self.n_init = n_init                           # Number of initializations
+        self.tol = tol                                 # Tolerance for convergence
 
-    def fit(self, X):
+        self.centroids = None                          # Cluster centroids
+        self.labels = None                             # Cluster assignments
+
+    def fit(self, X: pd.DataFrame):
         """
         Estimates parameters for the classifier
 
@@ -20,55 +27,34 @@ class KMeans:
             X (array<m,n>): a matrix of floats with
                 m rows (#samples) and n columns (#features)
         """
-        # Initial centroids chosen from using K-means++
-        self.centroids = self.initialize_centroids(X)
-        # Iterate for max_iters times
-        for _ in range(self.max_iters):
-            X_cols = X.columns.tolist()
+        X = np.array(X)
+        # TODO: Standardize the data
+        best_centroids = None
+        best_labels = None
+        best_distortion = np.inf
 
-            # Assign each data point to the nearest centroid
-            distances = cross_euclidean_distance(
-                X[X_cols].values, self.centroids)
-            labels = np.argmin(distances, axis=1)
+        for _ in range(self.n_init):
+            centroids = self.initialize_centroids(X, self.centroid_init)
 
-            # Update centroids to the mean of their assigned points
-            new_centroids = np.array(
-                [X[labels == i].mean(axis=0) for i in range(self.k)])
+            for _ in range(self.max_iters):
+                distances = cdist(X, centroids, 'euclidean')
+                labels = np.argmin(distances, axis=1)
+                new_centroids = np.array([X[labels == i].mean(axis=0) for i in range(self.k)])
 
-            # Check for convergence
-            if np.all(new_centroids == self.centroids):
-                break
+                if np.all(np.abs(new_centroids - centroids) < self.tol):
+                    break
 
-            self.centroids = new_centroids
+                centroids = new_centroids
 
-    def initialize_centroids(self, X):
-        """
-        Initialize centroids using K-means++ initialization
+            distortion = np.sum([np.sum(cdist(X[labels == i], [centroids[i]], 'euclidean')**2) for i in range(self.k)])
 
-        Args:
-            X (array<m,n>): a matrix of floats with
-                m rows (#samples) and n columns (#features)
+            if distortion < best_distortion:
+                best_distortion = distortion
+                best_centroids = centroids
+                best_labels = labels
 
-        Returns:
-            A numpy array of shape (k, n) with initial centroids
-        """
-        centroids = np.empty((self.k, X.shape[1]))
-
-        # Choose the first centroid randomly
-        centroids[0] = X.sample().to_numpy()
-
-        for i in range(1, self.k):
-            # Compute the distance to the nearest existing centroid for each point
-            distances = cross_euclidean_distance(X.to_numpy(), centroids[:i])
-            min_distances = distances.min(axis=1)
-
-            # Choose the next centroid with probability proportional to the squared distance
-            # This is equivalent to the squared Euclidean distance
-            probabilities = min_distances ** 2 / sum(min_distances ** 2)
-            new_centroid_idx = np.random.choice(X.shape[0], p=probabilities)
-            centroids[i] = X.iloc[new_centroid_idx].to_numpy()
-
-        return centroids
+        self.centroids = best_centroids
+        self.labels = best_labels
 
     def predict(self, X):
         """
@@ -108,8 +94,64 @@ class KMeans:
         """
         return self.centroids
 
+    def initialize_centroids(self, X, method='random'):
+        """
+        Initialize centroids using K-means++ initialization
+
+        Args:
+            X (array<m,n>): a matrix of floats with
+                m rows (#samples) and n columns (#features)
+
+        Returns:
+            A numpy array of shape (k, n) with initial centroids
+        """
+        if method == 'random':
+            return X[np.random.choice(len(X), self.k, replace=False)]
+        elif method == 'kpp':
+            centroids = np.empty((self.k, X.shape[1]))
+            centroids[0] = X[np.random.choice(len(X))]  # Choose the first centroid randomly
+
+            for i in range(1, self.k):
+                distances = cdist(X, centroids[:i], 'euclidean')
+                min_distances = np.min(distances, axis=1)
+
+                # Choose the next centroid with probability proportional to the squared distance
+                probabilities = min_distances ** 2 / np.sum(min_distances ** 2)
+                new_centroid_idx = np.random.choice(len(X), p=probabilities)
+                centroids[i] = X[new_centroid_idx]
+            return centroids
+        else:
+            raise ValueError('Invalid initialization type')
+
+
 
 # --- Some utility functions
+def feature_engineering(X: pd.DataFrame, method='normalize') -> pd.DataFrame:
+    """
+    Feature engineering for the K-means model
+
+    Args:
+        X (array<m,n>): a matrix of floats with
+            m rows (#samples) and n columns (#features)
+
+    Returns:
+        A numpy array of shape (m, n) with the new features
+    """
+    if method == 'normalize':
+        # Min-max scaling (normalize)
+        x_shift = X - X.min()
+        feature_range = X.max() - X.min()
+        normalized_X = x_shift / feature_range
+        return normalized_X
+    elif method == 'standardize':
+        # Z-score standardization (standardize)
+        x_shift = X - X.mean()
+        standardized_X = x_shift / X.std()
+        return standardized_X
+    else:
+        # No transformation
+        return X
+
 
 def euclidean_distance(x, y):
     """
@@ -211,26 +253,3 @@ def euclidean_silhouette(X, z):
     b = (D + inf_mask).min(axis=1)
 
     return np.mean((b - a) / np.maximum(a, b))
-
-
-def main():
-    data_2 = pd.read_csv('data_2.csv')
-    # Fit Model
-    X = data_2[['x0', 'x1']]
-    model_2 = KMeans(k=8)  # <-- Feel free to add hyperparameters
-    model_2.fit(X)
-
-    # Compute Silhouette Score
-    z = model_2.predict(X)
-    print(f'Distortion: {euclidean_distortion(X, z) :.3f}')
-    print(f'Silhouette Score: {euclidean_silhouette(X, z) :.3f}')
-
-    # Plot cluster assignments
-    C = model_2.get_centroids()
-    K = len(C)
-    _, ax = plt.subplots(figsize=(5, 5), dpi=100)
-    sns.scatterplot(x='x0', y='x1', hue=z, hue_order=range(K),
-                    palette='tab10', data=X, ax=ax)
-    sns.scatterplot(x=C[:, 0], y=C[:, 1], hue=range(
-        K), palette='tab10', marker='*', s=250, edgecolor='black', ax=ax)
-    ax.legend().remove()
