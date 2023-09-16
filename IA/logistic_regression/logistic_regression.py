@@ -3,7 +3,13 @@ import pandas as pd
 
 
 class LogisticRegression:
-    def __init__(self, degree=1, learning_rate=0.01, num_iterations=1000, regularization=0.01, batch_size=32, convergence_threshold=1e-4):
+    def __init__(self, 
+                 degree=1,  # Degree of the polynomial features for feature expansion
+                 learning_rate=0.01,  # The step size used in gradient descent for model training
+                 num_iterations=1000,  # The number of iterations for training the model
+                 regularization=0.01,  # Strength of L2 regularization to prevent overfitting
+                 batch_size=32,  # Number of data points used in each mini-batch during training
+                 convergence_threshold=1e-4):  # The threshold for considering convergence in training
         self.degree = degree
         self.learning_rate = learning_rate
         self.num_iterations = num_iterations
