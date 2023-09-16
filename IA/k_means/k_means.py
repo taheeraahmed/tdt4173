@@ -139,15 +139,13 @@ def feature_engineering(X: pd.DataFrame, method='normalize') -> pd.DataFrame:
     """
     if method == 'normalize':
         # Min-max scaling (normalize)
-        x_shift = X - X.min()
-        feature_range = X.max() - X.min()
-        normalized_X = x_shift / feature_range
-        return normalized_X
+        feat_range = X.max() - X.min()
+        shift_X = X - X.min()
+        return shift_X / feat_range
     elif method == 'standardize':
         # Z-score standardization (standardize)
-        x_shift = X - X.mean()
-        standardized_X = x_shift / X.std()
-        return standardized_X
+        shift_X = X - X.mean()
+        return shift_X / X.std()
     else:
         # No transformation
         return X
