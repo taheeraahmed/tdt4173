@@ -3,53 +3,26 @@ import pandas as pd
 
 
 class LogisticRegression:
-
-    def __init__(self, degree=1, learning_rate=0.01, num_iterations=1000, regularization=0.01, batch_size=32):
-        """
-        Initialize the Logistic Regression model with batch gradient descent.
-
-        Args:
-            degree (int): The degree of polynomial features to generate.
-            learning_rate (float): The learning rate for gradient descent.
-            num_iterations (int): The number of training iterations.
-            regularization (float): Strength of L2 regularization.
-            batch_size (int): The number of samples in each mini-batch.
-        """
+    def __init__(self, degree=1, learning_rate=0.01, num_iterations=1000, regularization=0.01, batch_size=32, convergence_threshold=1e-4):
         self.degree = degree
         self.learning_rate = learning_rate
         self.num_iterations = num_iterations
         self.regularization = regularization
         self.batch_size = batch_size
+        self.convergence_threshold = convergence_threshold
+        
         self.bias = None
         self.weights = None
 
     def generate_polynomial_features(self, X):
-        """
-        Generate polynomial features of specified degree.
-
-        Args:
-            X (array<m,n>): a matrix of floats with m rows (#samples) and n columns (#features).
-
-        Returns:
-            X_poly (array<m, n_poly>): a matrix of floats with polynomial features.
-        """
         X_poly = X.copy()
         for d in range(2, self.degree + 1):
             X_poly = np.concatenate((X_poly, X ** d), axis=1)
         return X_poly
 
     def fit(self, X, y):
-        """
-        Estimates parameters for the classifier using batch gradient descent.
-
-        Args:
-            X (array<m,n>): a matrix of floats with m rows (#samples) and n columns (#features)
-            y (array<m>): a vector of floats containing m binary 0.0/1.0 labels
-        """
-        X_poly = self.generate_polynomial_features(
-            X)
+        X_poly = self.generate_polynomial_features(X)
         m, n = X_poly.shape
-        np.random.seed(3)
         self.weights = np.random.randn(n)
         self.bias = 0
 
@@ -63,8 +36,7 @@ class LogisticRegression:
                 y_pred = sigmoid(np.dot(X_batch, self.weights) + self.bias)
 
                 # Compute gradients for the mini-batch
-                dw = (1 / X_batch.shape[0]) * np.dot(X_batch.T, (y_pred -
-                                                                 y_batch)) + (2 * self.regularization * self.weights)
+                dw = (1 / X_batch.shape[0]) * np.dot(X_batch.T, (y_pred - y_batch)) + (2 * self.regularization * self.weights)
                 db = (1 / X_batch.shape[0]) * np.sum(y_pred - y_batch)
 
                 # Update parameters
@@ -72,21 +44,9 @@ class LogisticRegression:
                 self.bias -= self.learning_rate * db
 
     def predict(self, X):
-        """
-        Generates predictions.
-
-        Note: should be called after .fit()
-
-        Args:
-            X (array<m,n>): a matrix of floats with m rows (#samples) and n columns (#features)
-
-        Returns:
-            A length m array of floats in the range [0, 1] with probability-like predictions
-        """
         if self.weights is None or self.bias is None:
             raise ValueError("Model not trained. Call fit() first.")
-        X_poly = self.generate_polynomial_features(
-            X)  # Generate polynomial features
+        X_poly = self.generate_polynomial_features(X)
         y_pred = sigmoid(np.dot(X_poly, self.weights) + self.bias)
         return y_pred
 
